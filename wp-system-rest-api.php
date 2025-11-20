@@ -3,7 +3,7 @@
  * Plugin Name: WP System REST API
  * Plugin URI: https://github.com/brunoalbim/wp-system-rest-api
  * Description: Expõe informações do sistema WordPress via REST API protegida por autenticação
- * Version: 1.0.0
+ * Version: 0.1.2
  * Author: Bruno Albim
  * Author URI: https://github.com/brunoalbim
  * License: GPL v2 or later
