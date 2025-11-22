@@ -187,7 +187,11 @@ if ($http_code === 200) {
 
 ```json
 {
-  "wordpress_version": "6.4.2",
+  "wordpress_version": {
+    "version": "6.4.2",
+    "update_available": false,
+    "latest_version": "6.4.2"
+  },
   "php_version": "8.2.0",
   "theme": {
     "name": "Twenty Twenty-Four",
@@ -269,12 +273,19 @@ if ($http_code === 200) {
 
 | Campo | Tipo | Descrição |
 |-------|------|-----------|
-| `wordpress_version` | string | Versão instalada do WordPress |
+| `wordpress_version` | object | Informações da versão do WordPress |
 | `php_version` | string | Versão do PHP do servidor |
 | `theme` | object | Informações do tema ativo |
 | `plugins` | array | Lista de todos os plugins instalados |
-| `timestamp` | string | Data/hora da requisição (timezone do site) |
-| `timestamp_gmt` | string | Data/hora da requisição (GMT/UTC) |
+| `timestamp` | string | Data/hora da requisição (timezone do sit| `timestamp_gmt` | string | Data/hora da requisição (GMT/UTC) |
+
+### Objeto WordPress Version
+
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| `version` | string | Versão atual instalada do WordPress |
+| `update_available` | boolean | Se há atualização disponível |
+| `latest_version` | string | Versão mais recente disponível |
 
 ### Objeto Theme
 
@@ -374,9 +385,16 @@ Contribuições são bem-vindas! Sinta-se à vontade para abrir issues ou pull r
 
 ## 📋 Changelog
 
-### Versão 1.0.0
+### Versão 0.2.0
+- **BREAKING CHANGE**: Campo `wordpress_version` agora retorna um objeto ao invés de string
+- Adicionado suporte para detecção de atualizações do WordPress core
+- Novo campo `wordpress_version.update_available` indica se há atualização disponível
+- Novo campo `wordpress_version.latest_version` mostra a versão mais recente disponível
+- Estrutura consistente entre `wordpress_version`, `theme` e `plugins`
+
+### Versão 0.1.2
 - Release inicial
 - Implementação do endpoint `/wp-json/wp-system/v1/info`
 - Suporte a Application Passwords
 - Informações de WordPress, PHP, tema e plugins
-- Detecção de atualizações disponíveis
+- Detecção de atualizações disponíveis para temas e plugins

@@ -3,7 +3,7 @@
  * Plugin Name: WP System REST API
  * Plugin URI: https://github.com/brunoalbim/wp-system-rest-api
  * Description: Expõe informações do sistema WordPress via REST API protegida por autenticação
- * Version: 0.1.2
+ * Version: 0.2.0
  * Author: Bruno Albim
  * Author URI: https://github.com/brunoalbim
  * License: GPL v2 or later
@@ -122,12 +122,36 @@ class WP_System_REST_API {
     }
 
     /**
-     * Obtém a versão do WordPress
+     * Obtém a versão do WordPress e verifica se há atualizações disponíveis
      *
-     * @return string Versão do WordPress
+     * @return array Informações da versão do WordPress (versão atual, atualização disponível, última versão)
      */
     private function get_wordpress_version() {
-        return get_bloginfo( 'version' );
+        $current_version = get_bloginfo( 'version' );
+        
+        // Obtém atualizações disponíveis para o WordPress core
+        $update_core = get_site_transient( 'update_core' );
+        
+        $update_available = false;
+        $latest_version = $current_version;
+        
+        // Verifica se há atualizações disponíveis
+        if ( $update_core && ! empty( $update_core->updates ) ) {
+            foreach ( $update_core->updates as $update ) {
+                // Verifica se é uma atualização (não uma reinstalação ou desenvolvimento)
+                if ( $update->response === 'upgrade' ) {
+                    $update_available = true;
+                    $latest_version = $update->version;
+                    break; // Pega a primeira atualização disponível (geralmente a mais recente)
+                }
+            }
+        }
+        
+        return array(
+            'version'          => $current_version,
+            'update_available' => $update_available,
+            'latest_version'   => $latest_version,
+        );
     }
 
     /**
