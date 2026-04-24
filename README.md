@@ -4,13 +4,14 @@ Plugin WordPress que expõe informações do sistema via REST API protegida por 
 
 ## 📋 Descrição
 
-O **WP System REST API** é um plugin simples mas robusto que cria um endpoint REST API customizado para fornecer informações detalhadas sobre sua instalação WordPress, incluindo:
+Expõe informações do sistema WordPress via REST API protegida por autenticação. Inclui integração com UpdraftPlus para visibilidade de backups.
 
 - Versão do WordPress
 - Versão do PHP
 - Tema ativo (com informações de atualização)
 - Lista completa de plugins instalados (ativos e inativos)
 - Status de atualizações disponíveis
+- Dados de backups do Updraft
 
 ## ✨ Características
 
@@ -62,10 +63,16 @@ O plugin utiliza o sistema nativo de **Application Passwords** (Senhas de Aplica
 
 ## 📡 Uso da API
 
-### Endpoint
+### Endpoint info do sistema
 
 ```
 GET /wp-json/wp-system/v1/info
+```
+
+### Endpoint Updraft
+
+```
+GET /wp-json/wp-system/v1/backup
 ```
 
 ### Autenticação
@@ -312,52 +319,6 @@ if ($http_code === 200) {
 | `description` | string | Descrição do plugin |
 | `plugin_uri` | string | URL do site do plugin |
 
-## 🛡️ Segurança
-
-### Boas Práticas
-
-1. **Use HTTPS**: Sempre utilize HTTPS em produção para proteger as credenciais
-2. **Senhas de Aplicação**: Use Application Passwords em vez da senha principal
-3. **Permissões Mínimas**: Crie usuários específicos com permissões mínimas necessárias
-4. **Rotação de Senhas**: Revogue e recrie Application Passwords periodicamente
-5. **Monitoramento**: Monitore logs de acesso ao endpoint
-
-### Revogando Acesso
-
-Para revogar o acesso de uma Application Password:
-
-1. Acesse **Usuários > Perfil**
-2. Na seção **Senhas de aplicação**, encontre a senha que deseja revogar
-3. Clique em **Revogar**
-
-## 🔧 Requisitos do Sistema
-
-- **WordPress**: 5.6 ou superior
-- **PHP**: 7.4 ou superior
-- **Application Passwords**: Habilitado (padrão desde WP 5.6)
-
-## 🐛 Troubleshooting
-
-### Erro 401: Não autenticado
-
-- Verifique se o usuário e a Application Password estão corretos
-- Certifique-se de que está usando a Application Password, não a senha principal
-- Verifique se o formato da autenticação está correto
-
-### Erro 404: Endpoint não encontrado
-
-- Verifique se o plugin está ativado
-- Vá em **Configurações > Links permanentes** e clique em **Salvar** para flush das rewrite rules
-
-### Application Passwords não aparece
-
-- Certifique-se de que está usando WordPress 5.6 ou superior
-- Verifique se seu site está usando HTTPS (obrigatório para Application Passwords)
-- Em ambientes de desenvolvimento local, você pode forçar a habilitação adicionando ao `wp-config.php`:
-  ```php
-  define('WP_ENVIRONMENT_TYPE', 'local');
-  ```
-
 ## 📝 Licença
 
 Este plugin é licenciado sob a GPL v2 ou posterior.
@@ -371,29 +332,6 @@ Este plugin é licenciado sob a GPL v2 ou posterior.
 
 Contribuições são bem-vindas! Sinta-se à vontade para abrir issues ou pull requests.
 
-## 📚 Recursos Adicionais
-
-- [WordPress REST API Handbook](https://developer.wordpress.org/rest-api/)
-- [Application Passwords Documentation](https://make.wordpress.org/core/2020/11/05/application-passwords-integration-guide/)
-- [WordPress Plugin Handbook](https://developer.wordpress.org/plugins/)
-
-## ⚠️ Notas Importantes
-
-- Este plugin expõe informações sobre seu site WordPress. Use com cautela e apenas em ambientes confiáveis.
-- Recomenda-se usar este plugin apenas para fins de monitoramento e administração interna.
-- Considere implementar rate limiting adicional se necessário para prevenir abuso.
-
-## 📋 Changelog
-
-### Versão 0.2.0
-- **BREAKING CHANGE**: Campo `wordpress_version` agora retorna um objeto ao invés de string
-- Adicionado suporte para detecção de atualizações do WordPress core
-- Novo campo `wordpress_version.update_available` indica se há atualização disponível
-- Novo campo `wordpress_version.latest_version` mostra a versão mais recente disponível
-- Estrutura consistente entre `wordpress_version`, `theme` e `plugins`
-
-### Versão 0.1.2
-- Release inicial
 - Implementação do endpoint `/wp-json/wp-system/v1/info`
 - Suporte a Application Passwords
 - Informações de WordPress, PHP, tema e plugins
