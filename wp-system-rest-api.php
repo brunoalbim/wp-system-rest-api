@@ -2,8 +2,8 @@
 /**
  * Plugin Name: WP System REST API
  * Plugin URI: https://github.com/brunoalbim/wp-system-rest-api
- * Description: Expõe informações do sistema WordPress via REST API protegida por autenticação
- * Version: 0.2.0
+ * Description: Expõe informações do sistema WordPress via REST API protegida por autenticação. Inclui integração com UpdraftPlus para visibilidade de backups.
+ * Version: 0.3.0
  * Author: Bruno Albim
  * Author URI: https://github.com/brunoalbim
  * License: GPL v2 or later
@@ -13,60 +13,41 @@
  * Requires PHP: 7.4
  */
 
-// Previne acesso direto ao arquivo
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-/**
- * Classe principal do plugin WP System REST API
- */
 class WP_System_REST_API {
 
-    /**
-     * Namespace da API REST
-     */
     const API_NAMESPACE = 'wp-system/v1';
 
-    /**
-     * Rota do endpoint
-     */
-    const API_ROUTE = '/info';
-
-    /**
-     * Construtor - registra os hooks necessários
-     */
     public function __construct() {
         add_action( 'rest_api_init', array( $this, 'register_routes' ) );
     }
 
-    /**
-     * Registra as rotas da REST API
-     *
-     * @return void
-     */
     public function register_routes() {
         register_rest_route(
             self::API_NAMESPACE,
-            self::API_ROUTE,
+            '/info',
             array(
-                'methods'             => WP_REST_Server::READABLE, // GET
+                'methods'             => WP_REST_Server::READABLE,
                 'callback'            => array( $this, 'handle_system_info_request' ),
+                'permission_callback' => array( $this, 'check_permission' ),
+            )
+        );
+
+        register_rest_route(
+            self::API_NAMESPACE,
+            '/backup',
+            array(
+                'methods'             => WP_REST_Server::READABLE,
+                'callback'            => array( $this, 'handle_backup_request' ),
                 'permission_callback' => array( $this, 'check_permission' ),
             )
         );
     }
 
-    /**
-     * Verifica se o usuário tem permissão para acessar o endpoint
-     *
-     * Este método funciona com Application Passwords (Senhas de Aplicação)
-     * e qualquer outro método de autenticação suportado pelo WordPress
-     *
-     * @return bool|WP_Error True se autenticado, WP_Error caso contrário
-     */
     public function check_permission() {
-        // Verifica se o usuário está autenticado
         if ( ! is_user_logged_in() ) {
             return new WP_Error(
                 'rest_forbidden',
@@ -75,7 +56,6 @@ class WP_System_REST_API {
             );
         }
 
-        // Verifica se o usuário tem capacidade básica de leitura
         if ( ! current_user_can( 'read' ) ) {
             return new WP_Error(
                 'rest_forbidden',
@@ -87,15 +67,12 @@ class WP_System_REST_API {
         return true;
     }
 
-    /**
-     * Handler principal do endpoint - retorna todas as informações do sistema
-     *
-     * @param WP_REST_Request $request Objeto da requisição REST
-     * @return WP_REST_Response|WP_Error Resposta com dados do sistema ou erro
-     */
+    // -------------------------------------------------------------------------
+    // Endpoint /info (existente)
+    // -------------------------------------------------------------------------
+
     public function handle_system_info_request( $request ) {
         try {
-            // Coleta todas as informações do sistema
             $system_data = array(
                 'wordpress_version' => $this->get_wordpress_version(),
                 'php_version'       => $this->get_php_version(),
@@ -103,8 +80,7 @@ class WP_System_REST_API {
                 'plugins'           => $this->get_plugins_info(),
             );
 
-            // Adiciona timestamp da requisição
-            $system_data['timestamp'] = current_time( 'mysql' );
+            $system_data['timestamp']     = current_time( 'mysql' );
             $system_data['timestamp_gmt'] = current_time( 'mysql', true );
 
             return rest_ensure_response( $system_data );
@@ -112,41 +88,29 @@ class WP_System_REST_API {
         } catch ( Exception $e ) {
             return new WP_Error(
                 'system_info_error',
-                sprintf(
-                    __( 'Erro ao coletar informações do sistema: %s', 'wp-system-rest-api' ),
-                    $e->getMessage()
-                ),
+                sprintf( __( 'Erro ao coletar informações do sistema: %s', 'wp-system-rest-api' ), $e->getMessage() ),
                 array( 'status' => 500 )
             );
         }
     }
 
-    /**
-     * Obtém a versão do WordPress e verifica se há atualizações disponíveis
-     *
-     * @return array Informações da versão do WordPress (versão atual, atualização disponível, última versão)
-     */
     private function get_wordpress_version() {
         $current_version = get_bloginfo( 'version' );
-        
-        // Obtém atualizações disponíveis para o WordPress core
-        $update_core = get_site_transient( 'update_core' );
-        
+        $update_core     = get_site_transient( 'update_core' );
+
         $update_available = false;
-        $latest_version = $current_version;
-        
-        // Verifica se há atualizações disponíveis
+        $latest_version   = $current_version;
+
         if ( $update_core && ! empty( $update_core->updates ) ) {
             foreach ( $update_core->updates as $update ) {
-                // Verifica se é uma atualização (não uma reinstalação ou desenvolvimento)
                 if ( $update->response === 'upgrade' ) {
                     $update_available = true;
-                    $latest_version = $update->version;
-                    break; // Pega a primeira atualização disponível (geralmente a mais recente)
+                    $latest_version   = $update->version;
+                    break;
                 }
             }
         }
-        
+
         return array(
             'version'          => $current_version,
             'update_available' => $update_available,
@@ -154,34 +118,21 @@ class WP_System_REST_API {
         );
     }
 
-    /**
-     * Obtém a versão do PHP
-     *
-     * @return string Versão do PHP
-     */
     private function get_php_version() {
         return phpversion();
     }
 
-    /**
-     * Obtém informações do tema ativo
-     *
-     * @return array Informações do tema (nome, versão, atualização disponível)
-     */
     private function get_theme_info() {
-        $theme = wp_get_theme();
-        
-        // Obtém atualizações disponíveis para temas
+        $theme         = wp_get_theme();
         $theme_updates = get_site_transient( 'update_themes' );
-        
-        // Verifica se há atualização disponível para o tema ativo
-        $stylesheet = get_stylesheet();
+        $stylesheet    = get_stylesheet();
+
         $update_available = false;
-        $latest_version = $theme->get( 'Version' );
+        $latest_version   = $theme->get( 'Version' );
 
         if ( isset( $theme_updates->response[ $stylesheet ] ) ) {
             $update_available = true;
-            $latest_version = $theme_updates->response[ $stylesheet ]['new_version'];
+            $latest_version   = $theme_updates->response[ $stylesheet ]['new_version'];
         }
 
         return array(
@@ -195,36 +146,23 @@ class WP_System_REST_API {
         );
     }
 
-    /**
-     * Obtém informações de todos os plugins instalados (ativos e inativos)
-     *
-     * @return array Lista de plugins com suas informações
-     */
     private function get_plugins_info() {
-        // Garante que a função get_plugins() está disponível
         if ( ! function_exists( 'get_plugins' ) ) {
             require_once ABSPATH . 'wp-admin/includes/plugin.php';
         }
 
-        // Obtém todos os plugins instalados
-        $all_plugins = get_plugins();
-        
-        // Obtém atualizações disponíveis
+        $all_plugins    = get_plugins();
         $plugin_updates = get_site_transient( 'update_plugins' );
-        
-        $plugins_data = array();
+        $plugins_data   = array();
 
         foreach ( $all_plugins as $plugin_path => $plugin_info ) {
-            // Verifica se o plugin está ativo
-            $is_active = is_plugin_active( $plugin_path );
-            
-            // Verifica se há atualização disponível
+            $is_active        = is_plugin_active( $plugin_path );
             $update_available = false;
-            $latest_version = $plugin_info['Version'];
+            $latest_version   = $plugin_info['Version'];
 
             if ( isset( $plugin_updates->response[ $plugin_path ] ) ) {
                 $update_available = true;
-                $latest_version = $plugin_updates->response[ $plugin_path ]->new_version;
+                $latest_version   = $plugin_updates->response[ $plugin_path ]->new_version;
             }
 
             $plugins_data[] = array(
@@ -241,9 +179,298 @@ class WP_System_REST_API {
 
         return $plugins_data;
     }
+
+    // -------------------------------------------------------------------------
+    // Endpoint /backup (novo — lê dados do UpdraftPlus via wp_options)
+    // -------------------------------------------------------------------------
+
+    public function handle_backup_request( $request ) {
+        try {
+            if ( ! $this->is_updraftplus_active() ) {
+                return rest_ensure_response( array( 'updraftplus_active' => false ) );
+            }
+
+            $version    = $this->get_updraftplus_version();
+            $schedule   = $this->get_updraftplus_schedule();
+            $history    = $this->get_updraftplus_history();
+            $s3_storage = $this->get_s3_storage_info();
+
+            $last_backup = ! empty( $history ) ? $history[0] : array(
+                'status'           => 'never',
+                'timestamp'        => null,
+                'duration_seconds' => null,
+                'files'            => array(),
+                'error'            => null,
+            );
+
+            return rest_ensure_response( array(
+                'updraftplus_active'   => true,
+                'updraftplus_version'  => $version,
+                'schedule'             => $schedule,
+                'storage'             => $s3_storage,
+                'last_backup'          => $last_backup,
+                'history'              => $history,
+            ) );
+
+        } catch ( Exception $e ) {
+            return new WP_Error(
+                'backup_info_error',
+                sprintf( __( 'Erro ao coletar informações de backup: %s', 'wp-system-rest-api' ), $e->getMessage() ),
+                array( 'status' => 500 )
+            );
+        }
+    }
+
+    private function is_updraftplus_active() {
+        if ( ! function_exists( 'is_plugin_active' ) ) {
+            require_once ABSPATH . 'wp-admin/includes/plugin.php';
+        }
+        // Verificar se qualquer variante do UpdraftPlus está ativa
+        $slugs = array(
+            'updraftplus/updraftplus.php',
+            'updraftplus-premium/updraftplus.php',
+        );
+        foreach ( $slugs as $slug ) {
+            if ( is_plugin_active( $slug ) ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private function get_updraftplus_version() {
+        if ( defined( 'UPDRAFTPLUS_VERSION' ) ) {
+            return UPDRAFTPLUS_VERSION;
+        }
+        // Fallback: buscar via dados do plugin
+        if ( ! function_exists( 'get_plugins' ) ) {
+            require_once ABSPATH . 'wp-admin/includes/plugin.php';
+        }
+        $plugins = get_plugins();
+        foreach ( $plugins as $path => $info ) {
+            if ( strpos( $path, 'updraftplus' ) !== false ) {
+                return $info['Version'];
+            }
+        }
+        return null;
+    }
+
+    private function get_s3_storage_info() {
+        $raw = get_option( 'updraft_s3generic', null );
+
+        if ( empty( $raw ) ) {
+            return null;
+        }
+
+        $config = is_array( $raw ) ? $raw : maybe_unserialize( $raw );
+
+        if ( ! is_array( $config ) ) {
+            return null;
+        }
+
+        // Estrutura: { version, settings: { <hash>: { path, endpoint, ... } } }
+        $settings = isset( $config['settings'] ) && is_array( $config['settings'] )
+            ? $config['settings']
+            : null;
+
+        // Sem wrapper "settings" — estrutura plana (versões antigas)
+        if ( $settings === null ) {
+            $settings = array( $config );
+        }
+
+        // Pegar a primeira entrada ativa (instance_enabled = 1) ou a primeira disponível
+        $entry = null;
+        foreach ( $settings as $item ) {
+            if ( ! is_array( $item ) ) {
+                continue;
+            }
+            if ( ! empty( $item['instance_enabled'] ) ) {
+                $entry = $item;
+                break;
+            }
+            if ( $entry === null ) {
+                $entry = $item; // fallback: primeira entrada mesmo sem instance_enabled
+            }
+        }
+
+        if ( $entry === null || ! isset( $entry['path'] ) ) {
+            return null;
+        }
+
+        return array(
+            'path' => trim( $entry['path'], '/' ),
+        );
+    }
+
+    private function get_updraftplus_schedule() {
+        $files_schedule = get_option( 'updraft_interval', 'manual' );
+        $db_schedule    = get_option( 'updraft_interval_database', 'manual' );
+
+        // Normalizar valores do UpdraftPlus para labels legíveis
+        $label_map = array(
+            'manual'    => 'manual',
+            'daily'     => 'daily',
+            'weekly'    => 'weekly',
+            'fortnightly' => 'fortnightly',
+            'monthly'   => 'monthly',
+            'every4hours'  => 'every4hours',
+            'every8hours'  => 'every8hours',
+            'twicedaily'   => 'twicedaily',
+        );
+
+        return array(
+            'files'    => isset( $label_map[ $files_schedule ] ) ? $label_map[ $files_schedule ] : $files_schedule,
+            'database' => isset( $label_map[ $db_schedule ] ) ? $label_map[ $db_schedule ] : $db_schedule,
+        );
+    }
+
+    private function get_updraftplus_history() {
+        // O UpdraftPlus armazena o histórico completo nesta chave
+        $raw_history = get_option( 'updraft_backup_history', array() );
+
+        if ( ! is_array( $raw_history ) || empty( $raw_history ) ) {
+            return array();
+        }
+
+        $history = array();
+
+        // Cada entrada é indexada pelo timestamp Unix do backup
+        foreach ( $raw_history as $timestamp => $backup_data ) {
+            if ( ! is_array( $backup_data ) ) {
+                continue;
+            }
+
+            $entry = $this->parse_backup_entry( (int) $timestamp, $backup_data );
+            if ( $entry ) {
+                $history[] = $entry;
+            }
+        }
+
+        // Ordenar do mais recente para o mais antigo
+        usort( $history, function( $a, $b ) {
+            return strtotime( $b['timestamp'] ) - strtotime( $a['timestamp'] );
+        } );
+
+        // Retornar apenas os últimos 10
+        return array_slice( $history, 0, 10 );
+    }
+
+    private function parse_backup_entry( $timestamp, $backup_data ) {
+        $files   = array();
+        $has_err = false;
+        $error   = null;
+
+        // Tipos de componentes que o UpdraftPlus faz backup
+        $component_types = array( 'db', 'plugins', 'themes', 'uploads', 'others' );
+
+        // Nomes de arquivos já enviados ao remoto (gravados pelo UpdraftPlus após upload)
+        $remote_sent = array();
+        if ( ! empty( $backup_data['remote_sent'] ) && is_array( $backup_data['remote_sent'] ) ) {
+            foreach ( $backup_data['remote_sent'] as $sent_files ) {
+                if ( is_array( $sent_files ) ) {
+                    $remote_sent = array_merge( $remote_sent, $sent_files );
+                } elseif ( is_string( $sent_files ) ) {
+                    $remote_sent[] = $sent_files;
+                }
+            }
+        }
+
+        foreach ( $component_types as $type ) {
+            if ( empty( $backup_data[ $type ] ) ) {
+                continue;
+            }
+
+            $component_files = is_array( $backup_data[ $type ] )
+                ? $backup_data[ $type ]
+                : array( $backup_data[ $type ] );
+
+            foreach ( $component_files as $filename ) {
+                if ( ! is_string( $filename ) ) {
+                    continue;
+                }
+
+                $local_path  = trailingslashit( WP_CONTENT_DIR ) . 'updraft/' . $filename;
+                $exists_local = file_exists( $local_path );
+                $exists_remote = in_array( $filename, $remote_sent, true );
+
+                $size = 0;
+                if ( $exists_local ) {
+                    $size = (int) filesize( $local_path );
+                } elseif ( isset( $backup_data[ $type . '-size' ] ) ) {
+                    // UpdraftPlus armazena o tamanho total do componente em "{type}-size"
+                    // quando os arquivos já foram enviados ao remoto e deletados localmente
+                    $type_size = $backup_data[ $type . '-size' ];
+                    $component_files_count = count( $component_files );
+                    $size = $component_files_count > 0 ? (int) ( $type_size / $component_files_count ) : 0;
+                }
+
+                // Determinar localização do arquivo
+                if ( $exists_local && $exists_remote ) {
+                    $storage = 'both';
+                } elseif ( $exists_remote ) {
+                    $storage = 's3';
+                } elseif ( $exists_local ) {
+                    $storage = 'local';
+                } else {
+                    // Arquivo não encontrado localmente mas registrado no histórico = remoto
+                    $storage = 's3';
+                }
+
+                $files[] = array(
+                    'type'       => $type === 'db' ? 'database' : $type,
+                    'filename'   => $filename,
+                    'size_bytes' => $size,
+                    'storage'    => $storage,
+                );
+            }
+        }
+
+        // Verificar erros registrados pelo UpdraftPlus
+        if ( ! empty( $backup_data['jobdata'] ) ) {
+            $jobdata = maybe_unserialize( $backup_data['jobdata'] );
+            if ( is_array( $jobdata ) && ! empty( $jobdata['last_error'] ) ) {
+                $has_err = true;
+                $error   = $jobdata['last_error'];
+            }
+        }
+
+        // Determinar status
+        if ( $has_err ) {
+            $status = 'failed';
+        } elseif ( ! empty( $backup_data['nonce'] ) && empty( $files ) ) {
+            // Backup iniciado mas sem arquivos registrados = pode estar rodando
+            $status = 'running';
+        } elseif ( ! empty( $files ) ) {
+            $status = 'success';
+        } else {
+            $status = 'failed';
+        }
+
+        // Calcular duração se disponível via jobdata
+        $duration = null;
+        if ( ! empty( $backup_data['jobdata'] ) ) {
+            $jobdata = maybe_unserialize( $backup_data['jobdata'] );
+            if ( is_array( $jobdata ) ) {
+                $start = isset( $jobdata['job_time_ms'] ) ? (float) $jobdata['job_time_ms'] / 1000 : null;
+                $end   = isset( $jobdata['time_last_success_no_warnings_or_errors'] )
+                    ? (float) $jobdata['time_last_success_no_warnings_or_errors']
+                    : null;
+                if ( $start && $end && $end > $start ) {
+                    $duration = (int) round( $end - $start );
+                }
+            }
+        }
+
+        return array(
+            'status'           => $status,
+            'timestamp'        => gmdate( 'Y-m-d\TH:i:s\Z', $timestamp ),
+            'duration_seconds' => $duration,
+            'files'            => $files,
+            'error'            => $error,
+        );
+    }
 }
 
-// Inicializa o plugin
 function wp_system_rest_api_init() {
     new WP_System_REST_API();
 }
