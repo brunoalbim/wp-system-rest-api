@@ -25,28 +25,12 @@ Expõe informações do sistema WordPress via REST API protegida por autenticaç
 
 ### Método 1: Upload Manual
 
-1. Baixe o arquivo `wp-system-rest-api.php`
+1. Baixe o arquivo .zip mais atualizado em [https://github.com/brunoalbim/wp-system-rest-api/releases](https://github.com/brunoalbim/wp-system-rest-api/releases)
 2. Acesse o painel administrativo do WordPress
 3. Vá em **Plugins > Adicionar novo > Fazer upload do plugin**
 4. Selecione o arquivo e clique em **Instalar agora**
 5. Ative o plugin
 
-### Método 2: Via FTP/SFTP
-
-1. Crie uma pasta chamada `wp-system-rest-api` no diretório `wp-content/plugins/`
-2. Faça upload do arquivo `wp-system-rest-api.php` para essa pasta
-3. Acesse o painel administrativo do WordPress
-4. Vá em **Plugins** e ative o **WP System REST API**
-
-### Método 3: Via WP-CLI
-
-```bash
-# Copie o plugin para o diretório de plugins
-cp -r wp-system-rest-api /path/to/wordpress/wp-content/plugins/
-
-# Ative o plugin
-wp plugin activate wp-system-rest-api
-```
 
 ## 🔐 Configuração de Autenticação
 
