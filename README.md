@@ -319,6 +319,22 @@ if ($http_code === 200) {
 | `description` | string | Descrição do plugin |
 | `plugin_uri` | string | URL do site do plugin |
 
+## 🔄 Atualizações
+
+O plugin verifica automaticamente por novas versões usando as [Releases do GitHub](https://github.com/brunoalbim/wp-system-rest-api/releases) como fonte, via [Plugin Update Checker](https://github.com/YahnisElsts/plugin-update-checker). Quando uma nova versão é publicada, ela aparece na tela **Plugins** do wp-admin como qualquer outra atualização, com botão **Atualizar agora**.
+
+### Como publicar uma nova versão (para mantenedores)
+
+1. Atualize o campo `Version:` no header de `wp-system-rest-api.php`.
+2. Faça commit da alteração.
+3. Crie e envie uma tag no formato `vX.Y.Z` (deve ser **idêntica** à versão do header):
+   ```bash
+   git tag v0.4.0
+   git push origin v0.4.0
+   ```
+4. O workflow `.github/workflows/release.yml` valida a tag contra o header, monta o `.zip` com a estrutura correta e publica a GitHub Release automaticamente com o pacote anexado.
+5. Sites com o plugin instalado passarão a ver a atualização no wp-admin (o WordPress verifica periodicamente; para forçar, use "Verificar novamente" na tela de Plugins/Updates).
+
 ## 📝 Licença
 
 Este plugin é licenciado sob a GPL v2 ou posterior.

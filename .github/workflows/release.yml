@@ -1,0 +1,50 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validar versão da tag contra o header do plugin
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          HEADER_VERSION=$(grep -m1 -oP '(?<=Version:\s)[0-9.]+' wp-system-rest-api.php | tr -d '[:space:]')
+
+          echo "Tag:    $TAG_VERSION"
+          echo "Header: $HEADER_VERSION"
+
+          if [ "$TAG_VERSION" != "$HEADER_VERSION" ]; then
+            echo "::error::A tag ($TAG_VERSION) não corresponde ao Version do header do plugin ($HEADER_VERSION)."
+            exit 1
+          fi
+
+      - name: Montar pacote do plugin
+        run: |
+          PLUGIN_SLUG="wp-system-rest-api"
+          BUILD_DIR="build/${PLUGIN_SLUG}"
+
+          mkdir -p "$BUILD_DIR"
+
+          cp wp-system-rest-api.php "$BUILD_DIR/"
+          cp README.md "$BUILD_DIR/"
+          cp LICENSE "$BUILD_DIR/"
+          cp -r vendor "$BUILD_DIR/vendor"
+
+          cd build
+          zip -r "../${PLUGIN_SLUG}.zip" "${PLUGIN_SLUG}"
+
+      - name: Publicar release com o zip anexado
+        uses: softprops/action-gh-release@v2
+        with:
+          files: wp-system-rest-api.zip
+          generate_release_notes: true

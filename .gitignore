@@ -41,6 +41,6 @@ node_modules/
 package-lock.json
 yarn.lock
 
-# Composer (caso adicione dependências PHP)
-vendor/
+# Composer (dependências PHP instaladas via composer install)
+# vendor/plugin-update-checker é vendorizado manualmente e commitado de propósito
 composer.lock

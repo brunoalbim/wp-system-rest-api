@@ -11,11 +11,16 @@
  * Text Domain: wp-system-rest-api
  * Requires at least: 5.6
  * Requires PHP: 7.4
+ * Update URI: https://github.com/brunoalbim/wp-system-rest-api
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
+
+require_once __DIR__ . '/vendor/plugin-update-checker/plugin-update-checker.php';
+
+use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
 
 class WP_System_REST_API {
 
@@ -23,6 +28,17 @@ class WP_System_REST_API {
 
     public function __construct() {
         add_action( 'rest_api_init', array( $this, 'register_routes' ) );
+        add_action( 'admin_init', array( $this, 'register_update_checker' ) );
+    }
+
+    public function register_update_checker() {
+        $update_checker = PucFactory::buildUpdateChecker(
+            'https://github.com/brunoalbim/wp-system-rest-api/',
+            __FILE__,
+            'wp-system-rest-api'
+        );
+
+        $update_checker->getVcsApi()->enableReleaseAssets();
     }
 
     public function register_routes() {
