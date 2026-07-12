@@ -1,0 +1,59 @@
+name: Tag on version bump
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "wp-system-rest-api.php"
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "Verificar se o Version: mudou neste push"
+        id: check
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          CURRENT_VERSION=$(grep -m1 -oP '(?<=Version:\s)[0-9.]+' wp-system-rest-api.php | tr -d '[:space:]')
+
+          PREVIOUS_VERSION=$(git show "${BEFORE_SHA}:wp-system-rest-api.php" 2>/dev/null \
+            | grep -m1 -oP '(?<=Version:\s)[0-9.]+' | tr -d '[:space:]' || echo "")
+
+          echo "Versão anterior: $PREVIOUS_VERSION"
+          echo "Versão atual:    $CURRENT_VERSION"
+
+          if [ "$CURRENT_VERSION" = "$PREVIOUS_VERSION" ]; then
+            echo "Version: não mudou neste push, nada a fazer."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          TAG="v${CURRENT_VERSION}"
+
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "::error::A tag $TAG já existe. Version: foi alterado para um valor já lançado?"
+            exit 1
+          fi
+
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Criar e enviar a tag
+        if: steps.check.outputs.changed == 'true'
+        env:
+          TAG: ${{ steps.check.outputs.tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "${TAG}"
+          git push origin "${TAG}"

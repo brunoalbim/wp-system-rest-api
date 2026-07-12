@@ -309,15 +309,15 @@ O plugin verifica automaticamente por novas versões usando as [Releases do GitH
 
 ### Como publicar uma nova versão (para mantenedores)
 
+A criação da tag é automática — basta subir a versão no código:
+
 1. Atualize o campo `Version:` no header de `wp-system-rest-api.php`.
-2. Faça commit da alteração.
-3. Crie e envie uma tag no formato `vX.Y.Z` (deve ser **idêntica** à versão do header):
-   ```bash
-   git tag v0.4.0
-   git push origin v0.4.0
-   ```
-4. O workflow `.github/workflows/release.yml` valida a tag contra o header, monta o `.zip` com a estrutura correta e publica a GitHub Release automaticamente com o pacote anexado.
+2. Faça commit da alteração e dê push na `main`.
+3. O workflow `.github/workflows/tag-on-version-bump.yml` detecta que o `Version:` mudou, cria a tag `vX.Y.Z` correspondente e envia automaticamente.
+4. Isso dispara o workflow `.github/workflows/release.yml`, que valida a tag contra o header, monta o `.zip` com a estrutura correta e publica a GitHub Release com o pacote anexado.
 5. Sites com o plugin instalado passarão a ver a atualização no wp-admin (o WordPress verifica periodicamente; para forçar, use "Verificar novamente" na tela de Plugins/Updates).
+
+Não é necessário criar ou enviar a tag manualmente — apenas garanta que o `Version:` do header esteja correto antes do commit.
 
 ## 📝 Licença
 
